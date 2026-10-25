@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Doxa</title><meta name="theme-color" content="#f4efe6">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Doxa">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css"></head><body>
+<div class="grain"></div>
+<section id="library" class="view">
+  <header class="top"><img src="icons/mark.svg" class="mark" alt=""><div><h1>Doxa</h1><p class="sub">songs for His glory</p></div></header>
+  <ul id="songList"></ul>
+  <p id="empty" class="empty">No songs yet. Start one — a line, a word, a whisper of praise.</p>
+  <button id="newSong" class="fab">＋ New song</button>
+</section>
+<section id="editor" class="view hidden">
+  <header class="bar"><button id="back" class="ghost">‹ Songs</button><div class="spacer"></div>
+    <button id="boldBtn" class="ghost b" title="Bold"><b>B</b></button>
+    <button id="hintToggle" class="ghost pill" title="Line hints">Hints: off</button>
+    <button id="moreBtn" class="ghost">⋯</button></header>
+  <input id="title" class="title" placeholder="Untitled song" autocomplete="off">
+  <div id="sections"></div>
+  <div class="addrow" id="addRow"></div>
+</section>
+<div id="selMenu" class="selmenu hidden"><button data-a="rhyme">Rhyme</button><button data-a="syn">Synonym</button><button data-a="rel">Worship words</button><button data-a="bold"><b>B</b></button></div>
+<div id="sheet" class="sheet hidden"><div class="grab"></div><div class="sheethead"><div><span id="sheetKind"></span> <b id="sheetWord"></b></div><button id="sheetClose" class="ghost">Done</button></div><div id="sheetBody"></div></div>
+<div id="menu" class="sheet hidden"><div class="grab"></div><div id="menuBody"></div></div>
+<script src="data/rhymes.js"></script><script src="data/synonyms.js"></script><script src="data/worship.js"></script><script src="app.js"></script>
+</body></html>

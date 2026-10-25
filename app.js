@@ -11,21 +11,23 @@ const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&qu
 const clean=h=>{const d=document.createElement('div');d.innerHTML=h;(function walk(n){[...n.childNodes].forEach(c=>{if(c.nodeType==1){walk(c);const t=c.tagName;if(t=='B'||t=='STRONG'){const b=document.createElement('b');b.append(...c.childNodes);c.replaceWith(b)}else if(t=='BR'){}else if(t=='DIV'||t=='P'){c.replaceWith(document.createElement('br'),...c.childNodes)}else c.replaceWith(...c.childNodes)}})})(d);return d.innerHTML.replace(/^<br>/,'')};
 const ago=t=>{const m=(Date.now()-t)/6e4;return m<1?'just now':m<60?Math.floor(m)+' min ago':m<1440?Math.floor(m/60)+' hr ago':new Date(t).toLocaleDateString()};
 // ---------- library
-function lib(){cur=null;$('#editor').classList.add('hidden');$('#library').classList.remove('hidden');
+function lib(){if(window.DOXA_CLOUD&&DOXA_CLOUD.onLeave)DOXA_CLOUD.onLeave();cur=null;hideCloudChrome();$('#editor').classList.add('hidden');$('#library').classList.remove('hidden');
  const L=$('#songList');L.innerHTML='';const songs=[...st.songs].sort((a,b)=>b.t-a.t);$('#empty').classList.toggle('hidden',songs.length>0);
  songs.forEach(s=>{const li=document.createElement('li');li.className='song';
   const first=(s.secs.map(x=>x.html).join(' ').replace(/<[^>]+>/g,' ').trim().split(/\s+/).slice(0,8).join(' '))||'';
   const bits=[ago(s.t)];if(s.key)bits.push(esc(s.key));if(first)bits.push(esc(first)+'…');
   li.innerHTML=`<div class="grow"><div class="t">${esc(s.title||'Untitled song')}</div><div class="d">${bits.join(' · ')}</div></div><button class="ghost">⋯</button>`;
-  li.querySelector('.grow').onclick=()=>open(s.id);li.querySelector('button').onclick=()=>songMenu(s);L.append(li)})}
+  li.querySelector('.grow').onclick=()=>open(s.id);li.querySelector('button').onclick=()=>songMenu(s);L.append(li)});if(window.DOXA_CLOUD&&DOXA_CLOUD.afterLib)DOXA_CLOUD.afterLib()}
 function songMenu(s){menu([['Open',()=>open(s.id)],['Rename',()=>{const n=prompt('Song title',s.title);if(n!=null){s.title=n.trim();s.t=Date.now();save();lib()}}],['Duplicate',()=>{const c=JSON.parse(JSON.stringify(s));c.id=uid();c.title=(s.title||'Untitled')+' (copy)';c.t=Date.now();st.songs.push(c);save();lib()}],['Delete',()=>{if(confirm('Delete “'+(s.title||'Untitled song')+'”?')){st.songs=st.songs.filter(x=>x!==s);save();lib()}},'red']])}
 $('#newSong').onclick=()=>{const s={id:uid(),title:'',key:'',t:Date.now(),secs:[{id:uid(),type:'Verse 1',html:''},{id:uid(),type:'Chorus',html:''}]};st.songs.push(s);save();open(s.id,true)};
 // ---------- editor
-function open(id,fresh){cur=st.songs.find(s=>s.id==id);closeSheets();$('#library').classList.add('hidden');$('#editor').classList.remove('hidden');$('#title').value=cur.title;render();if(fresh)$('#title').focus();window.scrollTo(0,0)}
-function touch(){cur.t=Date.now();save()}
+function open(id,fresh){const local=st.songs.find(s=>s.id==id);if(!local){if(window.DOXA_CLOUD&&DOXA_CLOUD.openCloud)return DOXA_CLOUD.openCloud(id,fresh);return}cur=local;hideCloudChrome();closeSheets();$('#library').classList.add('hidden');$('#editor').classList.remove('hidden');$('#title').value=cur.title;render();if(fresh)$('#title').focus();window.scrollTo(0,0)}
+function hideCloudChrome(){document.body.dataset.cloud='off';const ss=$('#saveState');if(ss){ss.classList.add('hidden');ss.textContent=''}const pb=$('#presenceBar');if(pb){pb.innerHTML='';pb.classList.add('hidden')}}
+function touch(){cur.t=Date.now();if(cur&&cur.cloud&&window.DOXA_CLOUD&&DOXA_CLOUD.onTouch){DOXA_CLOUD.onTouch();return}save()}
 $('#title').oninput=e=>{cur.title=e.target.value;touch()};
 $('#back').onclick=lib;
-function render(){const box=$('#sections');box.innerHTML='';
+function fillAddRow(){const a=$('#addRow');a.innerHTML='';['Verse','Chorus','Pre-Chorus','Bridge','Tag','Other…'].forEach(t=>{const bt=document.createElement('button');bt.type='button';bt.textContent='+ '+t;bt.onclick=()=>{if(t=='Other…')return typeMenu(null);addSec(t=='Verse'?'Verse '+(cur.secs.filter(s=>/^Verse/.test(s.type)).length+1):t=='Chorus'&&cur.secs.some(s=>s.type=='Chorus')?'Chorus 2':t)};a.append(bt)})}
+function render(){if(cur&&cur.cloud&&window.DOXA_CLOUD&&DOXA_CLOUD.renderCloud)return DOXA_CLOUD.renderCloud();hideCloudChrome();const box=$('#sections');box.innerHTML='';
  cur.secs.forEach((sec,i)=>{const d=document.createElement('div');d.className='sec';d.dataset.id=sec.id;
   d.innerHTML=`<div class="sechead"><button class="chip">${esc(sec.type)}</button><div class="ctl"><button data-m="up" title="Move up">↑</button><button data-m="dn" title="Move down">↓</button><button data-m="more">⋯</button></div></div><div class="body" contenteditable="true" spellcheck="true" data-ph="Write ${esc(sec.type.toLowerCase())}…"></div><div class="hints"></div>`;
   const b=d.querySelector('.body');b.innerHTML=sec.html;
@@ -37,13 +39,12 @@ function render(){const box=$('#sections');box.innerHTML='';
   d.querySelector('[data-m=dn]').onclick=()=>{if(i<cur.secs.length-1){cur.secs.splice(i+1,0,cur.secs.splice(i,1)[0]);touch();render()}};
   d.querySelector('[data-m=more]').onclick=()=>menu([['Change section type',()=>typeMenu(sec)],['Duplicate section',()=>{cur.secs.splice(i+1,0,{id:uid(),type:sec.type,html:sec.html});touch();render()}],['Delete section',()=>{if(!sec.html||confirm('Delete this '+sec.type+'?')){cur.secs.splice(i,1);touch();render()}},'red']]);
   box.append(d)});
- const a=$('#addRow');a.innerHTML='';['Verse','Chorus','Pre-Chorus','Bridge','Tag','Other…'].forEach(t=>{const bt=document.createElement('button');bt.textContent='+ '+t;bt.onclick=()=>{if(t=='Other…')return typeMenu(null);addSec(t=='Verse'?'Verse '+(cur.secs.filter(s=>/^Verse/.test(s.type)).length+1):t=='Chorus'&&cur.secs.some(s=>s.type=='Chorus')?'Chorus 2':t)};a.append(bt)});
- paintKey();syncHintUi()}
-function addSec(type){cur.secs.push({id:uid(),type,html:''});touch();render();const all=document.querySelectorAll('.body');all[all.length-1].focus()}
-function typeMenu(sec){menu(TYPES.map(t=>[t,()=>{let v=t;if(t=='Custom'){v=prompt('Section name','Interlude');if(!v)return}if(sec){sec.type=v;touch();render()}else addSec(v)}]))}
-$('#hintToggle').onclick=()=>{st.hints=!st.hints;save();if(!st.hints){clearTimeout(ht);document.querySelectorAll('.hints').forEach(h=>{h.innerHTML=''})}syncHintUi()};
-$('#moreBtn').onclick=()=>menu([['Rename song',()=>$('#title').focus()],['Copy lyrics (plain text)',()=>{navigator.clipboard&&navigator.clipboard.writeText(plain());}],['Delete song',()=>{if(confirm('Delete this song?')){st.songs=st.songs.filter(x=>x!==cur);save();lib()}},'red']]);
-function plain(){const head=(cur.title||'Untitled')+(cur.key?'\nKey: '+cur.key:'');return head+'\n\n'+cur.secs.map(s=>'['+s.type+']\n'+s.html.replace(/<br>/g,'\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')).join('\n\n')}
+ fillAddRow();paintKey();syncHintUi()}
+function addSec(type){if(cur&&cur.cloud&&window.DOXA_CLOUD&&DOXA_CLOUD.addSection)return DOXA_CLOUD.addSection(type);cur.secs.push({id:uid(),type,html:''});touch();render();const all=document.querySelectorAll('.body');all[all.length-1].focus()}
+function typeMenu(sec){menu(TYPES.map(t=>[t,()=>{let v=t;if(t=='Custom'){v=prompt('Section name','Interlude');if(!v)return}if(sec){sec.type=v;if(cur.cloud){sec.typeAt=Date.now();window.DOXA_CLOUD&&DOXA_CLOUD.onSection&&DOXA_CLOUD.onSection(sec.id)}touch();render()}else addSec(v)}]))}
+$('#hintToggle').onclick=()=>{st.hints=!st.hints;save();if(!st.hints){clearTimeout(ht);window.DOXA_CLOUD&&DOXA_CLOUD.clearHintTimers&&DOXA_CLOUD.clearHintTimers();document.querySelectorAll('.hints').forEach(h=>{h.innerHTML=''})}syncHintUi()};
+$('#moreBtn').onclick=()=>{const items=[['Rename song',()=>$('#title').focus()],['Copy lyrics (plain text)',()=>{navigator.clipboard&&navigator.clipboard.writeText(plain());}]];if(window.DOXA_CLOUD&&DOXA_CLOUD.moreItems)items.push(...DOXA_CLOUD.moreItems());if(!cur.cloud)items.push(['Delete song',()=>{if(confirm('Delete this song?')){st.songs=st.songs.filter(x=>x!==cur);save();lib()}},'red']);menu(items)};
+function plain(){const head=(cur.title||'Untitled')+(cur.key?'\nKey: '+cur.key:'');if(cur.cloud)return head+'\n\n'+cur.secs.map(s=>'['+s.type+']\n'+secText(s)).join('\n\n');return head+'\n\n'+cur.secs.map(s=>'['+s.type+']\n'+s.html.replace(/<br>/g,'\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')).join('\n\n')}
 const bold=()=>{document.execCommand('bold');const b=document.activeElement;if(b&&b.classList.contains('body'))b.dispatchEvent(new Event('input'))};
 function paintKey(){const b=$('#keyBtn');if(!b||!cur)return;const k=cur.key||'';b.textContent=k||'Key';b.classList.toggle('set',!!k);b.title=k?'Key of '+k:'Song key';b.setAttribute('aria-label',k?'Song key '+k:'Choose song key')}
 function syncHintUi(){document.body.dataset.hints=st.hints?'on':'off';const b=$('#hintToggle');if(!b)return;b.textContent='Hints: '+(st.hints?'on':'off');b.classList.toggle('on',!!st.hints);b.setAttribute('aria-pressed',st.hints?'true':'false')}
@@ -90,7 +91,7 @@ function showSheet(kind,word){closeSheets();const body=$('#sheetBody');body.inne
  if(kind=='rhyme'){const r=rhymes(word);Object.keys(r.bySyl).sort().forEach(n=>grp(n+' syllable'+(n>1?'s':''),r.ws?r.bySyl[n].sort((x,y)=>r.ws.has(y)-r.ws.has(x)):r.bySyl[n],r.ws));grp('Near rhymes',r.near,r.ws);if(!r.perfect.length&&!r.near.length)body.innerHTML='<p class="empty">No rhymes found for this one. Try a different ending word.</p>'}
  else if(kind=='syn'){const s=syns(word);grp('Synonyms',s);if(!s.length)body.innerHTML='<p class="empty">No synonyms on file for “'+esc(word)+'”.</p>';grp('Worship words',related(word).slice(0,16))}
  else grp('Worship & faith words',related(word))}
-function insert(text,kind){$('#sheet').classList.add('hidden');restore();
+function insert(text,kind){$('#sheet').classList.add('hidden');restore();if(savedSec&&savedSec.classList.contains('line')&&window.DOXA_CLOUD&&DOXA_CLOUD.insertWord)return DOXA_CLOUD.insertWord(text,kind);
  // rhyme: if selection is on a word, replace it only if it's the same line's last word? keep simple: rhyme inserts after selection on new line? -> insert at caret replacing selection for syn/rel; for rhyme replace selection too
  const sel=getSelection();const r=sel.getRangeAt(0);
  if(kind=='rhyme'){ // keep the original word; place the rhyme at end of the NEXT line (or new line)
@@ -105,7 +106,7 @@ function nextLineEnd(r){// find end of next line after range in body; create one
  const nb=after[1];if(nb){range.setStartBefore(nb)}else{range.selectNodeContents(body);range.collapse(false)}range.collapse(true);
  const prev=range.cloneRange();prev.setStartAfter(after[0]);const between=prev.toString();
  return{range,needSpace:between.length>0&&!/\s$/.test(between)}}
-function closeSheets(){$('#sheet').classList.add('hidden');$('#menu').classList.add('hidden')}
+function closeSheets(){$('#sheet').classList.add('hidden');$('#menu').classList.add('hidden');const m=$('#menu');if(m)m.classList.remove('tall')}
 $('#sheetClose').onclick=closeSheets;
 function menu(items){closeSheets();const m=$('#menuBody');m.innerHTML='';items.forEach(([l,f,c])=>{const b=document.createElement('button');b.className='menuitem'+(c?' '+c:'');b.textContent=l;b.onclick=()=>{closeSheets();f()};m.append(b)});const x=document.createElement('button');x.className='menuitem';x.style.color='var(--mute)';x.textContent='Cancel';x.onclick=closeSheets;m.append(x);$('#menu').classList.remove('hidden')}
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('.sheet,.selmenu,.ctl,.chip,#moreBtn,.song button,.addrow'))closeSheets()});
@@ -147,16 +148,17 @@ function hintCandidates(anchor,songText,sectionType){
 function suggestLines(anchor,songText,sectionType){return hintCandidates(anchor,songText,sectionType).map(c=>c.line)}
 let ht=null;function hintSoon(sec,d){if(!st.hints)return;clearTimeout(ht);ht=setTimeout(()=>hints(sec,d),1800)}
 function sectionPlain(html){return String(html||'').replace(/<br>/g,'\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')}
+function secText(sec){if(sec&&sec.lines)return sec.lines.filter(l=>l&&!l.deleted).map(l=>sectionPlain(l.html)).join('\n');return sectionPlain(sec&&sec.html||'')}
 function hints(sec,d){const H=d.querySelector('.hints');if(!H)return;H.innerHTML='';if(!st.hints)return;
- const lines=sectionPlain(sec.html).split('\n').map(s=>s.trim()).filter(Boolean);if(!lines.length)return;
+ const lines=secText(sec).split('\n').map(s=>s.trim()).filter(Boolean);if(!lines.length)return;
  const anchor=lines[lines.length-1];
- const songText=cur.secs.map(s=>sectionPlain(s.html)).join('\n');
+ const songText=cur.secs.map(secText).join('\n');
  const out=suggestLines(anchor,songText,sec.type);if(!out.length)return;
- out.forEach(s=>{const b=document.createElement('button');b.type='button';b.className='hint';b.textContent=s;b.onclick=()=>{const body=d.querySelector('.body');sec.html=sec.html.replace(/(<br>)*$/,'')+(sec.html.trim()?'<br>':'')+esc(s);body.innerHTML=sec.html;touch();hints(sec,d)};H.append(b)});
+ out.forEach(s=>{const b=document.createElement('button');b.type='button';b.className='hint';b.textContent=s;b.onclick=()=>{if(cur.cloud&&window.DOXA_CLOUD&&DOXA_CLOUD.insertHintLine){DOXA_CLOUD.insertHintLine(sec,s);return}const body=d.querySelector('.body');sec.html=sec.html.replace(/(<br>)*$/,'')+(sec.html.trim()?'<br>':'')+esc(s);body.innerHTML=sec.html;touch();hints(sec,d)};H.append(b)});
  const x=document.createElement('button');x.type='button';x.className='hint x';x.title='Hide these suggestions';x.textContent='✕';x.onclick=()=>H.innerHTML='';H.append(x)}
 // ---------- boot
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
-window.DOXA={st,open,showSheet,rhymes,syns,suggestLines,hintCandidates,sylCount};
+window.DOXA={st,open,showSheet,rhymes,syns,suggestLines,hintCandidates,sylCount,getCur:()=>cur,setCur:s=>{cur=s},render,lib,touch,save,uid,esc,clean,menu,closeSheets,plain,paintKey,syncHintUi,addSec,hints,hintSoon,secText,sectionPlain,typeMenu,fillAddRow};
 syncHintUi();
 lib();
 })();

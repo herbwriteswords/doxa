@@ -7,22 +7,23 @@
 <link rel="stylesheet" href="styles.css"></head><body>
 <div class="grain"></div>
 <section id="library" class="view">
-  <header class="top"><img src="icons/mark.svg" class="mark" alt=""><div><h1>Doxa</h1><p class="sub">songs for His glory</p></div></header>
+  <header class="top"><img src="icons/mark.svg" class="mark" alt=""><div class="titles"><h1>Doxa</h1><p class="sub">For His Glory</p></div><button id="accountBtn" class="ghost acct" type="button">Account</button></header>
   <ul id="songList"></ul>
   <p id="empty" class="empty">No songs yet. Start one — a line, a word, a whisper of praise.</p>
   <button id="newSong" class="fab">＋ New song</button>
 </section>
 <section id="editor" class="view hidden">
-  <header class="bar"><button id="back" class="ghost">‹ Songs</button><div class="spacer"></div>
-    <button id="boldBtn" class="ghost b" title="Bold"><b>B</b></button>
-    <button id="hintToggle" class="ghost pill" title="Line hints">Hints: off</button>
+  <header class="bar"><button id="back" class="ghost">‹ Songs</button><span id="saveState" class="save-state hidden" aria-live="polite"></span><div class="spacer"></div>
+    <button id="keyBtn" class="ghost keybtn" type="button" title="Song key" aria-label="Choose song key">Key</button>
+    <button id="hintToggle" class="ghost pill" type="button" title="Line hints" aria-pressed="false">Hints: off</button>
     <button id="moreBtn" class="ghost">⋯</button></header>
   <input id="title" class="title" placeholder="Untitled song" autocomplete="off">
+  <div id="presenceBar" class="presence hidden"></div>
   <div id="sections"></div>
   <div class="addrow" id="addRow"></div>
 </section>
-<div id="selMenu" class="selmenu hidden"><button data-a="rhyme">Rhyme</button><button data-a="syn">Synonym</button><button data-a="rel">Worship words</button><button data-a="bold"><b>B</b></button></div>
+<div id="selMenu" class="selmenu hidden"><button type="button" data-a="rhyme">Rhyme</button><button type="button" data-a="syn">Synonym</button><button type="button" data-a="rel">Worship words</button><button type="button" data-a="bold" title="Bold"><b>Bold</b></button></div>
 <div id="sheet" class="sheet hidden"><div class="grab"></div><div class="sheethead"><div><span id="sheetKind"></span> <b id="sheetWord"></b></div><button id="sheetClose" class="ghost">Done</button></div><div id="sheetBody"></div></div>
 <div id="menu" class="sheet hidden"><div class="grab"></div><div id="menuBody"></div></div>
-<script src="data/rhymes.js"></script><script src="data/synonyms.js"></script><script src="data/worship.js"></script><script src="app.js"></script>
+<script src="config.js"></script><script src="data/rhymes.js"></script><script src="data/synonyms.js"></script><script src="data/worship.js"></script><script src="app.js"></script><script src="collab.js"></script>
 </body></html>

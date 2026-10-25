@@ -9,7 +9,7 @@
 - **Word help:** select a word and pick **Rhyme**, **Synonym** or **Worship words** from the menu. A sheet slides up from the bottom.
   - **Rhyme** adds the word you tap to the end of the *next* line. If there isn't one, it starts a new line.
   - **Synonym** and **Worship words** replace the word you selected.
-- **Hints** (off by default): the **Hints** button turns line suggestions off completely, or on. When they're on, finishing a line offers 2–3 short worship lines you can tap to insert. They follow the previous line's length and rhyme, using the words already in the app. No account, no network, no AI. Tap ✕ to hide that set.
+- **Hints** (off by default): the **Hints** button turns line suggestions off completely, or on. When they're on, finishing a line offers 2–3 short worship lines you can tap to insert. They follow the previous line's length and rhyme, and they stay with the images already in the song. If those lines lean on Scripture (light, a shepherd, mercy, the cross, living water, a throng), the suggestions prefer short singable echoes of that image. Lines that miss both the rhyme and the image are left out. No verse numbers, no account, no network, no AI. Tap ✕ to hide that set.
 - Songs you have not shared are saved on the device (localStorage, key `doxa-v1`), including each song's key. They keep working offline with no account. Dark mode follows the system setting.
 - **Account** (top right) is for sharing a song with the team. Until Firebase is connected, that screen explains the setup and local songs are unchanged.
 
@@ -41,7 +41,7 @@ To click through the same screens on one computer before the Firebase project ex
 Open the hosted URL in Safari, tap Share, then **Add to Home Screen**. After the first load it works offline.
 
 ## Files
-`index.html`, `styles.css`, `app.js`, `collab.js`, `config.js`, `config.example.js`, `firestore.rules`, `sw.js` (offline cache `doxa-v1-2`; change the version on each deploy), `manifest.webmanifest`, `icons/`
+`index.html`, `styles.css`, `app.js`, `collab.js`, `config.js`, `config.example.js`, `firestore.rules`, `sw.js` (offline cache `doxa-v1-3`; change the version on each deploy), `manifest.webmanifest`, `icons/`
 - `data/rhymes.js`: about 16k words, rhyme keys from the CMU Pronouncing Dictionary (BSD), plus syllable counts
 - `data/synonyms.js`: WordNet (Princeton license) plus hand-written worship synonyms
 - `data/worship.js`: worship vocabulary, themes, and singable lines used for hints

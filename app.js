@@ -125,25 +125,38 @@ function lineOk(line){const raw=String(line||'').replace(/\s+/g,' ').trim();if(!
 function secBucket(type){const t=(type||'').toLowerCase();if(/bridge/.test(t))return 'bridge';if(/chorus|tag/.test(t))return 'chorus';return 'verse'}
 function lineSec(line){const l=line.toLowerCase();if(/\b(surrender|have your way|here i am|search me|take my|less of me|i give|i will wait|not my will)\b/.test(l))return 'bridge';if(/\b(hallelujah|worthy is|holy, holy|we will praise|forever|glory to)\b/.test(l))return 'chorus';return ''}
 function personOf(line){const s=new Set(wordsOf(line));if(s.has('i')||s.has('me')||s.has('my')||s.has("i'm")||s.has("i'll"))return 'i';if(s.has('we')||s.has('our')||s.has('us')||s.has("we're"))return 'we';return ''}
-function activeThemes(blob){const low=' '+String(blob||'').toLowerCase().replace(/[^a-z'\s]/g,' ')+' ';const has=w=>low.includes(' '+String(w).toLowerCase()+' ');const s=new Set();Object.keys(WS.themes).forEach(k=>{const hit=has(k)||WS.themes[k].some(has);if(hit){s.add(k);WS.themes[k].forEach(w=>s.add(w.toLowerCase()))}});return s}
+const GENERIC_THEME=new Set('lord god jesus christ holy love praise you your king name good great'.split(' '));
+const SCRIPTURE_THEMES=new Set('light shepherd cross mercy water throng word refuge lamb vine grace hope glory'.split(' '));
+function themeKeysOf(text){const low=' '+String(text||'').toLowerCase().replace(/[^a-z'\s]/g,' ')+' ';const has=w=>low.includes(' '+String(w).toLowerCase()+' ');const keys=Object.keys(WS.themes||{});const keySet=new Set(keys.map(k=>k.toLowerCase()));const out=[];keys.forEach(k=>{if(has(k)){out.push(k);return}const words=(WS.themes[k]||[]).map(w=>String(w).toLowerCase());if(words.some(w=>w!==k.toLowerCase()&&!GENERIC_THEME.has(w)&&!keySet.has(w)&&has(w)))out.push(k)});return out}
+function lineHitsThemes(line,keys){if(!keys.length)return 0;const low=' '+String(line).toLowerCase().replace(/[^a-z'\s]/g,' ')+' ';const has=w=>low.includes(' '+w+' ');const keySet=new Set(Object.keys(WS.themes||{}).map(k=>k.toLowerCase()));let n=0;keys.forEach(k=>{const kk=k.toLowerCase();if(has(kk)){n++;return}const words=(WS.themes[k]||[]).map(w=>String(w).toLowerCase()).filter(w=>!GENERIC_THEME.has(w)&&!keySet.has(w));if(words.some(has))n++});return n}
+function hintRhyme(a,b){const rank=rhymeRank(a,b);if(rank!=='n')return rank;const A=(phonemes(a)[0]||'').split(' ').filter(Boolean),B=(phonemes(b)[0]||'').split(' ').filter(Boolean);if(A.length<2||B.length<2)return '';if(A.slice(-2).join(' ')!==B.slice(-2).join(' '))return '';if(Math.abs(A.length-B.length)>2)return '';return 'n'}
+function toneFit(line,bucket){const l=line.toLowerCase();const chorus=/\b(we will|we exalt|we worship|hallelujah|worthy|holy, holy|forever|give you praise)\b/.test(l);const bridge=/\b(i surrender|have your way|search me|here i am|not my will|create in me|less of me|have mercy on me)\b/.test(l);const verse=/\b(shepherd|pasture|pastures|throng|waters|valley|wounds|pierced|deer|lamp|tomb|flock|sheep)\b/.test(l);if(bucket==='chorus')return (chorus?8:0)+(bridge?-8:0);if(bucket==='bridge')return (bridge?10:0)+(chorus?-4:0);return (verse?8:0)+(bridge?-6:0)}
 function hintCandidates(anchor,songText,sectionType){
  const raw=String(anchor||'').trim();if(!raw)return [];
  const lw=lastWord(raw);if(!lw)return [];
  const target=sylCount(raw),anchorOpen=wordsOf(raw).slice(0,2).join(' '),anchorRhythm=wordsOf(raw).map(sylOfWord).join('.'),anchorWords=wordsOf(raw),anchorPerson=personOf(raw);
- const themes=activeThemes((songText||'')+' '+raw),bucket=secBucket(sectionType);
+ const keys=themeKeysOf((songText||'')+' '+raw),bucket=secBucket(sectionType),scriptural=keys.some(k=>SCRIPTURE_THEMES.has(k));
+ const echoes=new Set((WS.scripture||[]).map(s=>String(s).toLowerCase().replace(/\s+/g,' ').trim()));
  const existing=new Set(String(songText||'').split(/\n|<br>/).map(s=>s.replace(/<[^>]+>/g,'').trim().toLowerCase()).filter(Boolean));
  existing.add(raw.toLowerCase());
  const seen=new Set(),cands=[];
- const push=line=>{const text=String(line).replace(/\s+/g,' ').trim();const key=text.toLowerCase();if(!lineOk(text)||seen.has(key)||existing.has(key))return;const ws=wordsOf(text);const end=ws[ws.length-1].replace(/'/g,'');if(end===lw)return;const syl=ws.reduce((n,w)=>n+sylOfWord(w),0);const diff=Math.abs(syl-target);if(diff>5)return;const rhyme=rhymeRank(lw,end);let score=40-diff*12;if(diff===0)score+=6;if(rhyme==='p')score+=36;else if(rhyme==='n')score+=14;else score-=4;const open=ws.slice(0,2).join(' ');if(open&&open===anchorOpen)score+=10;if(wordsOf(text).map(sylOfWord).join('.')===anchorRhythm)score+=12;else if(ws.length===anchorWords.length)score+=3;score+=Math.min(3,ws.filter(w=>themes.has(w.replace(/'/g,''))).length)*3;if(anchorPerson&&personOf(text)===anchorPerson)score+=3;const ls=lineSec(text);if(ls&&ls===bucket)score+=4;seen.add(key);cands.push({line:text,score,end,syl,diff,rhyme,open})};
+ const push=line=>{const text=String(line).replace(/\s+/g,' ').trim();const key=text.toLowerCase();if(!lineOk(text)||seen.has(key)||existing.has(key))return;if(/\d+\s*:\s*\d+|\b(psalm|gospel|matthew|mark|luke|john|isaiah|revelation|genesis|exodus|hebrews|romans)\b/i.test(text))return;const ws=wordsOf(text);const end=ws[ws.length-1].replace(/'/g,'');if(end===lw)return;const syl=ws.reduce((n,w)=>n+sylOfWord(w),0);const diff=Math.abs(syl-target);if(diff>3)return;const rhyme=hintRhyme(lw,end);const hits=lineHitsThemes(text,keys);const echo=echoes.has(key);let score=28-diff*16;if(diff===0)score+=8;if(rhyme==='p')score+=42;else if(rhyme==='n')score+=16;else score-=10;const open=ws.slice(0,2).join(' ');if(open&&open===anchorOpen)score+=8;if(ws.map(sylOfWord).join('.')===anchorRhythm)score+=10;else if(ws.length===anchorWords.length)score+=2;if(keys.length){if(hits)score+=Math.min(3,hits)*14;else score-=30}if(scriptural&&hits&&echo)score+=22;if(anchorPerson&&personOf(text)===anchorPerson)score+=3;score+=toneFit(text,bucket);const ls=lineSec(text);if(ls&&ls===bucket)score+=4;else if(ls&&ls!==bucket)score-=6;seen.add(key);cands.push({line:text,score,end,syl,diff,rhyme,hits,echo})};
  (WS.lines||[]).forEach(push);
+ (WS.scripture||[]).forEach(push);
  (WS.patterns||[]).forEach(p=>{(p.words||[]).forEach(w=>push(String(p.pre).replace(/\s+$/,'')+' '+w))});
- cands.sort((a,b)=>b.score-a.score||a.line.localeCompare(b.line));
+ cands.sort((a,b)=>b.score-a.score||a.diff-b.diff||a.line.localeCompare(b.line));
+ const themed=cands.filter(c=>c.hits>0);
+ const pool=(keys.length&&themed.length)?themed:cands;
+ const viable=pool.filter(c=>c.rhyme||c.hits>0);
+ if(!viable.length)return [];
+ const bestEcho=viable.find(c=>c.echo&&c.hits>0&&c.diff<=2);
+ let list=viable;
+ if(bestEcho&&keys.length)list=viable.filter(c=>c.echo||c.score+8>=bestEcho.score||(c.rhyme==='p'&&c.hits>0&&c.diff<=bestEcho.diff+1));
  const out=[],usedLine=new Set(),usedEnd=new Set();
- if(!cands.length)return [];
- const best=cands[0].score,take=c=>{out.push(c);usedLine.add(c.line);usedEnd.add(c.end)};
- for(const c of cands){if(out.length>=3)break;if(usedLine.has(c.line)||usedEnd.has(c.end))continue;if(c.rhyme==='p'&&c.score>=best-20){take(c);continue}if(c.score>=best-8)take(c);else if(out.length)break}
- if(out.length<3){for(const c of cands){if(out.length>=3)break;if(usedLine.has(c.line)||c.rhyme!=='p'||c.diff>2||c.score<best-18)continue;take(c)}}
- if(out.length<2){for(const c of cands){if(out.length>=2)break;if(usedLine.has(c.line))continue;take(c)}}
+ const best=list[0].score,take=c=>{out.push(c);usedLine.add(c.line);usedEnd.add(c.end)};
+ const close=c=>c.score>=best-16||(c.echo&&c.hits>0&&c.diff<=1)||(c.rhyme==='p'&&c.diff<=1&&c.score>=best-22);
+ for(const c of list){if(out.length>=3)break;if(usedLine.has(c.line)||usedEnd.has(c.end))continue;if(!close(c)){if(out.length)break;continue}if(!c.rhyme&&c.diff>2)continue;take(c)}
+ if(out.length<2){for(const c of list){if(out.length>=3)break;if(usedLine.has(c.line)||usedEnd.has(c.end))continue;if(c.diff>2)continue;if(!(c.echo&&c.hits>0)&&c.score<best-24)continue;take(c)}}
  return out.slice(0,3)}
 function suggestLines(anchor,songText,sectionType){return hintCandidates(anchor,songText,sectionType).map(c=>c.line)}
 let ht=null;function hintSoon(sec,d){if(!st.hints)return;clearTimeout(ht);ht=setTimeout(()=>hints(sec,d),1800)}
